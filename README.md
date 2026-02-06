@@ -21,6 +21,7 @@ https://caitlincast.onrender.com
   
 WebSockets for Render work like this:  
 wss://caitlincast.onrender.com  
+  
 That is the address you plug into your HTML client (the index.html file).  
   
 ## 📝 Update your index.html  
