@@ -5,12 +5,12 @@
 3. Choose your GitHub repo
 
 ### 4. Configure:
-Name: movie-sync-server
-Language: Node
-Region: Closest to both people watching
-Build Command: npm install
-Start Command: npm start
-Instance Type: Free tier is fine
+Name: caitlincast (or whatever you want to name it)  
+Language: Node  
+Region: Closest to both people watching  
+Build Command: npm install  
+Start Command: npm start  
+Instance Type: Free tier is fine  
 
 5. Click Create Web Service
 Render will build and deploy your server.
