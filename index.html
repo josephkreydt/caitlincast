@@ -34,7 +34,8 @@
         </div>
 
         <script>
-            const ws = new WebSocket("ws://localhost:8080"); // Replace with deployed server if needed
+            //const ws = new WebSocket("ws://localhost:8080"); // Replace with deployed server if needed
+            const ws = new WebSocket("wss://caitlincast.onrender.com");
             const player = document.getElementById("player");
 
             // Suppression logic to prevent play/pause loops
