@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Us</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                text-align: center;
+                padding: 20px;
+            }
+            video {
+                width: 100%;
+                max-width: 900px;
+                display: block;
+                margin: 20px auto;
+            }
+            button {
+                padding: 10px 20px;
+                margin: 5px;
+                font-size: 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🎥 Hi Caitlin 😊</h1>
+
+        <input type="file" id="fileInput" accept="video/*" /><br /><br />
+        <video id="player" controls></video>
+
+        <div>
+            <button id="rewindBtn">⏪ Backward 10s</button>
+            <button id="ffBtn">⏩ Forward 10s</button>
+        </div>
+
+        <script>
+            const ws = new WebSocket("ws://localhost:8080"); // Replace with deployed server if needed
+            const player = document.getElementById("player");
+
+            // Suppression logic to prevent play/pause loops
+            let suppressEvents = false;
+            let lastRemoteAction = 0;
+            const REMOTE_SUPPRESS_WINDOW = 300; // ms
+
+            function beginSuppress() {
+                suppressEvents = true;
+                lastRemoteAction = Date.now();
+            }
+
+            function endSuppress() {
+                suppressEvents = false;
+            }
+
+            function isSuppressed() {
+                return (
+                    suppressEvents ||
+                    Date.now() - lastRemoteAction < REMOTE_SUPPRESS_WINDOW
+                );
+            }
+
+            // --- Load local file ---
+            document.getElementById("fileInput").onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                player.src = URL.createObjectURL(file);
+            };
+
+            // --- Send events ---
+            function broadcast(event) {
+                if (isSuppressed()) return;
+                ws.send(
+                    JSON.stringify({
+                        event,
+                        currentTime: player.currentTime,
+                    }),
+                );
+            }
+
+            // Local player events
+            player.addEventListener("play", () => broadcast("play"));
+            player.addEventListener("pause", () => broadcast("pause"));
+            player.addEventListener("seeked", () => broadcast("seek"));
+
+            // --- FF / RW buttons ---
+            document.getElementById("ffBtn").onclick = () => {
+                player.currentTime = Math.min(
+                    player.currentTime + 10,
+                    player.duration || player.currentTime + 10,
+                );
+                broadcast("seek");
+            };
+            document.getElementById("rewindBtn").onclick = () => {
+                player.currentTime = Math.max(player.currentTime - 10, 0);
+                broadcast("seek");
+            };
+
+            // --- Handle incoming messages ---
+            ws.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                beginSuppress();
+
+                if (msg.event === "play") {
+                    player.currentTime = msg.currentTime;
+                    player.play().catch(() => {}); // ignore autoplay errors
+                }
+                if (msg.event === "pause") {
+                    player.currentTime = msg.currentTime;
+                    player.pause();
+                }
+                if (msg.event === "seek") {
+                    player.currentTime = msg.currentTime;
+                }
+
+                endSuppress();
+            };
+
+            // --- Drift correction ---
+            setInterval(() => {
+                if (player.paused) return;
+                ws.send(
+                    JSON.stringify({
+                        event: "syncRequest",
+                        currentTime: player.currentTime,
+                    }),
+                );
+            }, 2000);
+
+            // Respond to sync requests/responses
+            ws.addEventListener("message", (e) => {
+                const msg = JSON.parse(e.data);
+
+                // Other client asking for sync
+                if (msg.event === "syncRequest") {
+                    ws.send(
+                        JSON.stringify({
+                            event: "syncResponse",
+                            currentTime: player.currentTime,
+                        }),
+                    );
+                }
+
+                // Other client sending its current time
+                if (msg.event === "syncResponse") {
+                    const drift = Math.abs(
+                        player.currentTime - msg.currentTime,
+                    );
+                    if (drift > 0.15) {
+                        // threshold for adjustment
+                        beginSuppress();
+                        player.currentTime = msg.currentTime;
+                        endSuppress();
+                    }
+                }
+            });
+        </script>
+        <p>Made with 💖 by Joseph.</p>
+    </body>
+</html>
